@@ -27,12 +27,12 @@
         "type": "string",
         "default": ""
     },
-    "auto_config": {
+    "record": {
         "description": "AI声聊配置",
         "type": "object",
         "hint": "本插件有一定概率主动将bot本来要发送的文本转成语音发送",
         "items": {
-            "default_character": {
+            "character": {
                 "description": "默认使用的AI语音角色",
                 "hint": "将文本转为AI语音时使用",
                 "type": "string",
@@ -62,13 +62,13 @@
                     "书香少女"
                 ]
             },
-            "send_record_probability": {
+            "record_prob": {
                 "description": "主动转语音发送的概率",
                 "type": "float",
                 "hint": "",
                 "default": 0.15
             },
-            "max_resp_text_len": {
+            "max_text_len": {
                 "description": "文本长度限制",
                 "type": "int",
                 "hint": "超过此长度的文本不会被转成语音发送",

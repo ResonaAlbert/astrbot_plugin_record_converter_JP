@@ -1,17 +1,19 @@
 import asyncio
-from datetime import datetime
 import os
 import random
+from datetime import datetime
 
 import aiofiles
+
+from astrbot.api import logger
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, StarTools, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.message.components import File, Plain, Record, Video
-from astrbot.api import logger
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
+
 from .utils import (
     download_file,
     extract_audio,
@@ -23,28 +25,15 @@ from .utils import (
 )
 
 
-@register(
-    "astrbot_plugin_record_converter",
-    "Zhalslar",
-    "QQ语音转化插件",
-    "v1.0.1",
-)
+@register("astrbot_plugin_record_converter", "Zhalslar", "...", "...")
 class RecordConverterPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        self.format = config.get("format", "mp3")
-        self.send_private = config.get("send_private", False)
+        self.conf = config
         self.plugin_data_dir = str(
             StarTools.get_data_dir("astrbot_plugin_record_converter")
         )
         self.manager_group_id = config.get("manager_group_id", "")
-
-        auto_config: dict = config.get("auto_config", {})
-        self.default_character = auto_config.get("default_character", "")
-        self.send_record_probability: float = auto_config.get(
-            "send_record_probability", 0.15
-        )
-        self.max_resp_text_len: int = auto_config.get("max_resp_text_len", 50)
         self.character_id = None
 
     async def get_file_name(
@@ -54,7 +43,7 @@ class RecordConverterPlugin(Star):
         replyer_id = get_replyer_id(event) or 0
         nickname = await get_nickname(event, user_id=replyer_id)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        ext = guess_audio_ext(file) if file else self.format
+        ext = guess_audio_ext(file) if file else self.conf["format"]
         return f"{nickname}_{timestamp}.{ext}"
 
     @staticmethod
@@ -73,7 +62,7 @@ class RecordConverterPlugin(Star):
         """调用QQ声聊合成语音并发送"""
         if not self.character_id:
             self.character_id = await self.get_character_id(
-                event, character=self.default_character
+                event, character=self.conf["record"]["character"]
             )
         group_id = self.manager_group_id or event.get_group_id()
         audio_path = await event.bot.get_ai_record(
@@ -115,7 +104,10 @@ class RecordConverterPlugin(Star):
             out_path = asyncio.run(extract_audio(path, self.plugin_data_dir))
             file_name = await self.get_file_name(event)
             await upload_file(
-                event, path=out_path, name=file_name, send_private=self.send_private
+                event,
+                path=out_path,
+                name=file_name,
+                send_private=self.conf["send_private"],
             )
             return
 
@@ -153,9 +145,9 @@ class RecordConverterPlugin(Star):
                 event,
                 path=audio_path,
                 name=file_name,
-                send_private=self.send_private,
+                send_private=self.conf["send_private"],
             )
-            if not event.is_private_chat() and self.send_private:
+            if not event.is_private_chat() and self.conf["send_private"]:
                 yield event.plain_result("私发给你了")
             logger.info(f"成功转化语音文件: {seg.file} -> {file_name}")
             event.stop_event()
@@ -165,16 +157,18 @@ class RecordConverterPlugin(Star):
     async def on_decorating_result(self, event: AiocqhttpMessageEvent):
         """将文本按概率生成语音并发送"""
         # 概率控制
-        if random.random() > self.send_record_probability:
+        if random.random() > self.conf["record"]["record_prob"]:
             return
         chain = event.get_result().chain
+        if not chain:
+            return
         seg = chain[0]
 
         # 纯短文本
         if (
             len(chain) == 1
             and isinstance(seg, Plain)
-            and len(seg.text) < self.max_resp_text_len
+            and len(seg.text) < self.conf["record"]["max_text_len"]
         ):
             audio_path = await self.qq_tts(event, seg.text)
             if self.manager_group_id:
