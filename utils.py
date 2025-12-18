@@ -1,12 +1,13 @@
 import asyncio
 import os
+
 import aiohttp
+
+from astrbot.api import logger
 from astrbot.core.message.components import Reply
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
-from astrbot.api import logger
-
 
 
 def get_replyer_id(event: AiocqhttpMessageEvent) -> str | None:

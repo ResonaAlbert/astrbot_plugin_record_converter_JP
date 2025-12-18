@@ -7,7 +7,7 @@ import aiofiles
 
 from astrbot.api import logger
 from astrbot.api.event import filter
-from astrbot.api.star import Context, Star, StarTools, register
+from astrbot.api.star import Context, Star, StarTools
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.message.components import File, Plain, Record, Video
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
@@ -25,7 +25,6 @@ from .utils import (
 )
 
 
-@register("astrbot_plugin_record_converter", "Zhalslar", "...", "...")
 class RecordConverterPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -159,7 +158,10 @@ class RecordConverterPlugin(Star):
         # 概率控制
         if random.random() > self.conf["record"]["record_prob"]:
             return
-        chain = event.get_result().chain
+        result = event.get_result()
+        if not result:
+            return
+        chain = result.chain
         if not chain:
             return
         seg = chain[0]
