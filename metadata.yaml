@@ -2,6 +2,6 @@ name: astrbot_plugin_record_converter
 display_name: QQ语音转化
 desc: QQ语音转化插件，包括语音转文件，文件转语音，克服了QQ语音无法转发的问题
 help: 略
-version: v1.0.2
+version: v1.0.3
 author: Zhalslar
 repo: https://github.com/Zhalslar/astrbot_plugin_record_converter
