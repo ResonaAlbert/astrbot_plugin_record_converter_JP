@@ -1,4 +1,10 @@
 {
+    "only_llm_result": {
+        "description": "只处理LLM结果",
+        "type": "bool",
+        "hint": "只处理 LLM返回的消息。建议打开",
+        "default": true
+    },
     "format": {
         "description": "转化的语音的格式",
         "type": "string",

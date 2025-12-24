@@ -155,17 +155,20 @@ class RecordConverterPlugin(Star):
     @filter.on_decorating_result()
     async def on_decorating_result(self, event: AiocqhttpMessageEvent):
         """将文本按概率生成语音并发送"""
-        # 概率控制
-        if random.random() > self.conf["record"]["record_prob"]:
-            return
         result = event.get_result()
         if not result:
             return
         chain = result.chain
         if not chain:
             return
-        seg = chain[0]
+        # 仅处理LLM消息
+        if self.conf["only_llm_result"] and not result.is_llm_result():
+            return
+        # 概率控制
+        if random.random() > self.conf["record"]["record_prob"]:
+            return
 
+        seg = chain[0]
         # 纯短文本
         if (
             len(chain) == 1
