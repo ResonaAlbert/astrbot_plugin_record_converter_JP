@@ -2,7 +2,7 @@
     "only_llm_result": {
         "description": "只处理LLM结果",
         "type": "bool",
-        "hint": "只处理 LLM返回的消息。建议打开",
+        "hint": "只处理 LLM 返回的消息。建议打开",
         "default": true
     },
     "format": {
