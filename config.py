@@ -80,13 +80,10 @@ class RecordConfig(ConfigNode):
 
 class PluginConfig(ConfigNode):
     only_llm_result: bool
-    format: str
     send_private: bool
     ship_gid: str
     record: RecordConfig
 
     def __init__(self, cfg: AstrBotConfig, context: Context):
         super().__init__(cfg)
-        self.context = context
-        self.admins_id: list[str] = context.get_config().get("admins_id", [])
         self.data_dir = StarTools.get_data_dir("astrbot_plugin_record_converter")

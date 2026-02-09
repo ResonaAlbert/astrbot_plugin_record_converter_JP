@@ -46,27 +46,27 @@ async def download_file(url: str) -> bytes | None:
 
 
 def guess_audio_ext(file_bytes: bytes) -> str:
-    """根据文件头猜测常见音频扩展名（无依赖版）"""
+    """根据文件头猜测常见音频扩展名（不带点号）"""
     header = file_bytes[:16]
 
     magic_map = [
-        (b"ID3", ".mp3"),  # MP3 - ID3 标签
-        (b"\xff\xfb", ".mp3"),  # MP3 - 帧同步
-        (b"RIFF", ".wav"),  # WAV - RIFF chunk
-        (b"OggS", ".ogg"),  # OGG
-        (b"fLaC", ".flac"),  # FLAC
-        (b"\xff\xf1", ".aac"),  # AAC - ADTS sync word
-        (b"\xff\xf9", ".aac"),  # AAC - ADTS sync word
+        (b"ID3", "mp3"),  # MP3 - ID3 标签
+        (b"\xff\xfb", "mp3"),  # MP3 - 帧同步
+        (b"RIFF", "wav"),  # WAV - RIFF chunk
+        (b"OggS", "ogg"),  # OGG
+        (b"fLaC", "flac"),  # FLAC
+        (b"\xff\xf1", "aac"),  # AAC - ADTS sync word
+        (b"\xff\xf9", "aac"),  # AAC - ADTS sync word
     ]
 
     for magic, ext in magic_map:
         if header.startswith(magic):
             # WAV 需要额外确认是 WAVE 格式
-            if ext == ".wav" and header[8:12] != b"WAVE":
+            if ext == "wav" and header[8:12] != b"WAVE":
                 continue
             return ext
 
-    return ".dat"  # 未识别
+    return "dat"  # 未识别
 
 
 async def get_file_name(
