@@ -1,5 +1,5 @@
-import asyncio
-import os
+from datetime import datetime
+from pathlib import Path
 
 import aiohttp
 
@@ -69,16 +69,28 @@ def guess_audio_ext(file_bytes: bytes) -> str:
     return ".dat"  # 未识别
 
 
+async def get_file_name(
+    event: AiocqhttpMessageEvent,
+    file: bytes | None = None,
+) -> str:
+    """生成文件名"""
+    replyer_id = get_replyer_id(event) or 0
+    nickname = await get_nickname(event, user_id=replyer_id)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ext = guess_audio_ext(file) if file else "mp3"
+    return f"{nickname}_{timestamp}.{ext}"
+
+
 async def upload_file(
     event: AiocqhttpMessageEvent,
-    path: str,
+    path: Path,
     name: str | None = None,
     send_private: bool = False,
 ):
     """上传文件"""
     client = event.bot
     group_id = event.get_group_id()
-    name = name or os.path.basename(path)
+    name = name or path.name
     if not send_private and group_id:
         await client.upload_group_file(
             group_id=int(group_id),
@@ -91,33 +103,3 @@ async def upload_file(
             file=str(path),
             name=name,
         )
-
-
-async def extract_audio(video_path: str, out_path: str) -> str:
-    cmd = [
-        "ffmpeg",
-        "-i",
-        str(video_path),
-        "-vn",
-        "-acodec",
-        "copy",
-        "-y",
-        out_path,
-    ]
-
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-    )
-    if proc.stdout is None:
-        raise RuntimeError("无法获取 ffmpeg 的 stdout")
-
-    async for line in proc.stdout:
-        print(line.decode(), end="")
-
-    await proc.wait()
-    if proc.returncode != 0:
-        raise RuntimeError("ffmpeg 执行失败")
-
-    return out_path
