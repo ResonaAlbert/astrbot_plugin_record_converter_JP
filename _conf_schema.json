@@ -5,31 +5,15 @@
         "hint": "只处理 LLM 返回的消息。建议打开",
         "default": true
     },
-    "format": {
-        "description": "转化的语音的格式",
-        "type": "string",
-        "hint": "建议用mp3",
-        "default": "mp3",
-        "options": [
-            "mp3",
-            "amr",
-            "wma",
-            "m4a",
-            "spx",
-            "ogg",
-            "wav",
-            "flac"
-        ]
-    },
     "send_private": {
         "description": "仅转发私信",
         "hint": "语音转文件时, 是否转为私信，从而避免在群聊里显示，达到保护隐私的效果",
         "type": "bool",
         "default": false
     },
-    "manager_group_id": {
-        "description": "管理群群号",
-        "hint": "生成AI语音时, 用管理群中转，从而避免显示AI语音，不填表示不中转",
+    "ship_gid": {
+        "description": "中转群群号",
+        "hint": "生成AI语音时, 用中转群中转语音，从而避免显示AI语音，不填表示不中转",
         "type": "string",
         "default": ""
     },
@@ -38,24 +22,47 @@
         "type": "object",
         "hint": "本插件有一定概率主动将bot本来要发送的文本转成语音发送",
         "items": {
-            "character": {
+            "character_id": {
                 "description": "默认使用的AI语音角色",
                 "hint": "将文本转为AI语音时使用",
                 "type": "string",
-                "default": "温柔妹妹",
                 "options": [
+                    "lucy-voice-laibixiaoxin",
+                    "lucy-voice-houge",
+                    "lucy-voice-silang",
+                    "lucy-voice-guangdong-f1",
+                    "lucy-voice-guangxi-m1",
+                    "lucy-voice-daji",
+                    "lucy-voice-lizeyan",
+                    "lucy-voice-suxinjiejie",
+                    "lucy-voice-m8",
+                    "lucy-voice-male1",
+                    "lucy-voice-male3",
+                    "lucy-voice-lvbu",
+                    "lucy-voice-xueling",
+                    "lucy-voice-f37",
+                    "lucy-voice-male2",
+                    "lucy-voice-female1",
+                    "lucy-voice-m14",
+                    "lucy-voice-f38",
+                    "lucy-voice-m101",
+                    "lucy-voice-female2",
+                    "lucy-voice-f36",
+                    "lucy-voice-f34"
+                ],
+                "labels": [
                     "小新",
                     "猴哥",
+                    "四郎",
                     "东北老妹儿",
                     "广西大表哥",
+                    "妲己",
+                    "霸道总裁",
+                    "酥心御姐",
                     "说书先生",
                     "憨憨小弟",
                     "憨厚老哥",
-                    "妲己",
-                    "四郎",
                     "吕布",
-                    "霸道总裁",
-                    "酥心御姐",
                     "元气少女",
                     "文艺少女",
                     "磁性大叔",
@@ -66,7 +73,8 @@
                     "暖心姐姐",
                     "温柔妹妹",
                     "书香少女"
-                ]
+                ],
+                "default": "lucy-voice-f36"
             },
             "record_prob": {
                 "description": "主动转语音发送的概率",
