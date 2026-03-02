@@ -1,5 +1,6 @@
 import random
 import aiofiles
+import httpx  # 新增：用于发送 API 请求
 
 from astrbot.api import logger
 from astrbot.api.event import filter
@@ -35,16 +36,33 @@ class RecordConverterPlugin(Star):
             return 0
 
     async def _translate_to_japanese(self, text: str) -> str:
-        """调用插件关联的 LLM 将文本翻译为日语"""
+        """
+        改用 MyMemory 免费翻译 API (中文 -> 日语)
+        无需 API Key，有频率限制（普通使用足够）
+        """
         if not text or not text.strip():
             return ""
-        prompt = f"请将以下内容翻译成日语，仅输出翻译结果，不要包含任何解释或引号：\n{text}"
+        
+        url = "https://api.mymemory.translated.net/get"
+        params = {
+            "q": text,
+            "langpair": "zh-CN|ja" # 源语言中文(简) | 目标语言日语
+        }
+        
         try:
-            # 确保使用 AstrBot 核心的主 LLM 请求
-            result = await self.context.get_main_llm().request(prompt)
-            return result.completion_text.strip()
+            async with httpx.AsyncClient() as client:
+                # 设定 10 秒超时，防止 API 响应过慢导致插件卡死
+                resp = await client.get(url, params=params, timeout=10.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    translated_text = data.get("responseData", {}).get("translatedText", "")
+                    if translated_text:
+                        return translated_text
+                
+                logger.warning(f"翻译 API 返回异常状态码: {resp.status_code}")
+                return text # 失败则返回原文
         except Exception as e:
-            logger.error(f"翻译至日语失败: {e}")
+            logger.error(f"免费翻译 API 调用出错: {e}")
             return text
 
     @filter.command("转语音")
@@ -58,7 +76,6 @@ class RecordConverterPlugin(Star):
             else event.message_str.partition(" ")[2]
         )
 
-        # 文件 -> 语音
         if isinstance(seg, File) and seg.url:
             record_file = await download_file(seg.url)
             if not record_file:
@@ -78,7 +95,6 @@ class RecordConverterPlugin(Star):
             yield event.chain_result([Record.fromFileSystem(audio_path)])
             return
 
-        # 文本 -> 语音
         elif text:
             audio_url = await event.bot.get_ai_record(
                 character=self.cfg.record.character_id,
@@ -96,18 +112,13 @@ class RecordConverterPlugin(Star):
         seg = reply_chain[0] if reply_chain else None
         source_text = ""
 
-        # 情况 A: 引用的是语音
         if isinstance(seg, Record):
             source_text = getattr(seg, 'text', "") 
             if not source_text:
                 yield event.plain_result("暂不支持直接识别该语音内容，请尝试引用文本。")
                 return
-
-        # 情况 B: 引用的是文本
         elif isinstance(seg, Plain):
             source_text = seg.text
-
-        # 情况 C: 指令后缀文本
         else:
             source_text = event.message_str.partition(" ")[2]
 
@@ -115,7 +126,7 @@ class RecordConverterPlugin(Star):
             yield event.plain_result("请提供一段文本或引用一条消息")
             return
 
-        # 1. 翻译逻辑
+        # 1. 免费翻译逻辑
         jp_text = await self._translate_to_japanese(source_text)
         
         # 2. 生成语音
@@ -127,7 +138,7 @@ class RecordConverterPlugin(Star):
 
         if audio_url:
             yield event.chain_result([
-                Plain(f"🇯🇵 日语翻译：{jp_text}"),
+                Plain(f"🇯🇵 译文：{jp_text}"),
                 Record.fromURL(audio_url)
             ])
         else:
@@ -166,19 +177,13 @@ class RecordConverterPlugin(Star):
         if not result or not result.chain:
             return
         
-        # 仅处理LLM消息
         if self.cfg.only_llm_result and not result.is_llm_result():
             return
         
-        # 概率控制
         if random.random() > self.cfg.record.record_prob:
             return
 
-        # 遍历消息链找到文本内容
-        plain_text = ""
-        for seg in result.chain:
-            if isinstance(seg, Plain):
-                plain_text += seg.text
+        plain_text = "".join([seg.text for seg in result.chain if isinstance(seg, Plain)])
 
         if plain_text and len(plain_text) < self.cfg.record.max_text_len:
             audio_url = await event.bot.get_ai_record(
