@@ -1,4 +1,3 @@
-
 import random
 import aiofiles
 
@@ -25,6 +24,18 @@ class RecordConverterPlugin(Star):
         super().__init__(context)
         self.cfg = PluginConfig(config, context)
 
+    async def _translate_to_japanese(self, text: str) -> str:
+        """调用插件关联的 LLM 将文本翻译为日语"""
+        if not text.strip():
+            return ""
+        prompt = f"请将以下内容翻译成日语，仅输出翻译结果，不要包含任何解释或引号：\n{text}"
+        try:
+            # 使用 AstrBot 核心提供的主 LLM 实例进行翻译
+            result = await self.context.get_main_llm().request(prompt)
+            return result.completion_text.strip()
+        except Exception as e:
+            logger.error(f"翻译至日语失败: {e}")
+            return text
 
     @filter.command("转语音")
     async def to_record(self, event: AiocqhttpMessageEvent):
@@ -65,9 +76,58 @@ class RecordConverterPlugin(Star):
                 group_id=int(group_id),
                 text=text,
             )
-            if self.cfg.ship_gid:
+            if audio_url:
                 yield event.chain_result([Record.fromURL(audio_url)])
             event.stop_event()
+
+    @filter.command("日转语音")
+    async def to_jp_record(self, event: AiocqhttpMessageEvent):
+        """语音/文本 -> 翻译成日语 -> 语音"""
+        reply_chain = get_reply_chain(event)
+        seg = reply_chain[0] if reply_chain else None
+        
+        source_text = ""
+
+        # 情况 A: 引用的是语音 (需要 STT)
+        if isinstance(seg, Record):
+            # 注意：某些平台 bot 实例可能不直接暴露识别接口，这里依赖 AstrBot 的 LLM 多模态能力或特定 API
+            # 简化逻辑：尝试从事件获取识别出的文本（如果平台已处理）
+            source_text = getattr(seg, 'text', "") 
+            if not source_text:
+                yield event.plain_result("暂不支持直接识别该语音内容，请尝试引用文本。")
+                return
+
+        # 情况 B: 引用的是文本
+        elif isinstance(seg, Plain):
+            source_text = seg.text
+
+        # 情况 C: 直接输入的文本
+        else:
+            source_text = event.message_str.partition(" ")[2]
+
+        if not source_text:
+            yield event.plain_result("请提供一段文本或引用一条消息")
+            return
+
+        # 1. 翻译逻辑
+        jp_text = await self._translate_to_japanese(source_text)
+        
+        # 2. 生成语音
+        group_id = self.cfg.ship_gid or event.get_group_id()
+        audio_url = await event.bot.get_ai_record(
+            character=self.cfg.record.character_id, 
+            group_id=int(group_id),
+            text=jp_text,
+        )
+
+        if audio_url:
+            # 返回译文参考和语音
+            yield event.chain_result([
+                Plain(f"🇯🇵 日语翻译：{jp_text}"),
+                Record.fromURL(audio_url)
+            ])
+        else:
+            yield event.plain_result("生成日文语音失败")
 
     @filter.command("转文件")
     async def to_file(self, event: AiocqhttpMessageEvent):
@@ -127,6 +187,6 @@ class RecordConverterPlugin(Star):
                 group_id=int(group_id),
                 text=seg.text,
             )
-            if self.cfg.ship_gid:
+            if audio_url:
                 chain.clear()
                 chain.append(Record.fromURL(audio_url))
